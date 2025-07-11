@@ -1,0 +1,689 @@
+﻿PackageReference
+ 
+<Project Sdk="Microsoft.NET.Sdk.Web">
+ 
+      <PropertyGroup>
+            <TargetFramework>net8.0</TargetFramework>
+            <Nullable>enable</Nullable>
+            <ImplicitUsings>enable</ImplicitUsings>
+      </PropertyGroup>
+ 
+      <ItemGroup>
+            <PackageReference Include="Microsoft.AspNetCore.Mvc.TagHelpers" Version="2.3.0" />
+            <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.14" />
+            <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.14">
+                  <PrivateAssets>all</PrivateAssets>
+                  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            </PackageReference>
+            <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.14" />
+            <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.14" />
+            <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.14">
+                  <PrivateAssets>all</PrivateAssets>
+                  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            </PackageReference>
+            <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.7" />
+      </ItemGroup>
+ 
+      <ItemGroup>
+            <Folder Include="wwwroot\Uploads\" />
+      </ItemGroup>
+ 
+</Project>
+ 
+ 
+Program.cs
+ 
+ 
+using Microsoft.EntityFrameworkCore;
+using NkB1285413.Models;
+ 
+namespace NkB1285413
+{
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            var builder = WebApplication.CreateBuilder(args);
+ 
+            // Add services to the container.
+            builder.Services.AddControllersWithViews();
+            builder.Services.AddDbContext<ApplicationDbContext>(opt => opt.UseSqlServer(builder.Configuration.GetConnectionString("appCon")));
+            var app = builder.Build();
+ 
+            // Configure the HTTP request pipeline.
+            if (!app.Environment.IsDevelopment())
+            {
+                app.UseExceptionHandler("/Home/Error");
+            }
+            app.UseStaticFiles();
+ 
+            app.UseRouting();
+ 
+            app.UseAuthorization();
+ 
+            app.MapControllerRoute(
+                name: "default",
+                pattern: "{controller=Home}/{action=Index}/{id?}");
+ 
+            app.Run();
+        }
+    }
+}
+ 
+ 
+appsettings.json
+ 
+ 
+{
+    "Logging": {
+        "LogLevel": {
+            "Default": "Information",
+            "Microsoft.AspNetCore": "Warning"
+        }
+    },
+    "AllowedHosts": "*",
+    "ConnectionStrings": {
+        "appCon": "Data Source=.;Database=EviDB_Core;Trusted_Connection=True;MultipleActiveResultSets=True;TrustServerCertificate=True;"
+    }
+}
+ 
+ 
+Models
+Customer.cs
+ 
+ 
+ 
+using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
+ 
+namespace NkB1285413.Models
+{
+    public class Customer
+    {
+        public int CustomerId { get; set; }
+        public string? CustomerCode { get; set; } = default!;
+        [Required, StringLength(50)]
+        public string Name { get; set; } = default!;
+        public string Address { get; set; } = default!;
+        [Column(TypeName = "date"), DisplayFormat(DataFormatString = "{0:yyyy-MM-dd}", ApplyFormatInEditMode = true)]
+        public DateTime BusinessStart { get; set; }
+        [StringLength(50)]
+        public string CustomerType { get; set; } = default!;
+ 
+        [Required, StringLength(30)]
+        public string Phone { get; set; } = default!;
+        public string Email { get; set; } = default!;
+        [Column(TypeName = "money"), Display(Name = "Credit Details")]
+        public decimal CreditDetails { get; set; }
+        public string? Photo { get; set; } = default!;
+ 
+        public virtual ICollection<DeliveryAddress> DeliveryAddresses { get; set; } = new List<DeliveryAddress>();
+ 
+    }
+}
+ 
+ 
+DeliveryAddress.cs
+ 
+using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
+ 
+namespace NkB1285413.Models
+{
+    public class DeliveryAddress
+    {
+        public int DeliveryAddressId { get; set; }
+        [Required, ForeignKey("Customer")]
+        public int CustomerId { get; set; }
+        [Required, StringLength(60)]
+        public string ContactPerson { get; set; } = default!;
+        [Required, StringLength(30)]
+        public string Phone { get; set; } = default!;
+        [Required, StringLength(100)]
+        public string Address { get; set; } = default!;
+        public virtual Customer? Customer { get; set; }
+    }
+}
+ 
+ApplicationDbContext.cs
+ 
+using Microsoft.EntityFrameworkCore;
+ 
+namespace NkB1285413.Models
+{
+    public class ApplicationDbContext : DbContext
+    {
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+        {
+ 
+        }
+        public DbSet<Customer> Customers { get; set; }
+        public DbSet<DeliveryAddress> DeliveryAddresses { get; set; }
+    }
+ 
+}
+ 
+CustomersController.cs
+ 
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using NkB1285413.Models;
+ 
+namespace NkB1285413.Controllers
+{
+    public class CustomersController : Controller
+    {
+        private readonly ApplicationDbContext _context;
+        public CustomersController(ApplicationDbContext _context)
+        {
+            this._context = _context;
+        }
+        //public async Task<IActionResult> Index()
+        //{
+        //    var count = await _context.Customers.MaxAsync(x => x.CustomerId);
+        //    string id = Convert.ToString(count + 1);
+        //    ViewBag.id = id;
+        //    var customers=await _context.Customers.Include(c=>c.DeliveryAddresses).ToListAsync();
+        //    return View(customers);
+ 
+        public async Task<IActionResult> Index()
+        {
+            var count = 0;
+            string id = "";
+            if (count != 0)
+            {
+                count = await _context.Customers.MaxAsync(x => x.CustomerId);
+                id = Convert.ToString(count + 1);
+                ViewBag.id = id;
+            }
+            else
+            {
+                id = Convert.ToString(count + 1);
+                ViewBag.id = id;
+            }
+            var customers = await _context.Customers.Include(c => c.DeliveryAddresses).ToListAsync();
+            return View(customers);
+        }
+ 
+        [HttpGet]
+        public async Task<IActionResult> GetCustomer(int id)
+        {
+            var customer = await _context.Customers
+                                       .Include(c => c.DeliveryAddresses)
+                                       .FirstOrDefaultAsync(c => c.CustomerId == id);
+            if (customer == null)
+            {
+                return NotFound();
+            }
+ 
+            return Json(new
+            {
+                customerId = customer.CustomerId,
+                name = customer.Name,
+                address = customer.Address,
+                customerType = customer.CustomerType,
+                businessStart = customer.BusinessStart,
+                phone = customer.Phone,
+                email = customer.Email,
+                creditDetails = customer.CreditDetails,
+                photo = customer.Photo,
+                deliveryAddresses = customer.DeliveryAddresses.Select(d => new
+                {
+                    address = d.Address,
+                    contactPerson = d.ContactPerson,
+                    phone = d.Phone
+                })
+            });
+        }
+ 
+        [HttpPost]
+        public async Task<IActionResult> Save(Customer customer, IFormFile? photo)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                if (photo != null && photo.Length > 0)
+                {
+                    var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Uploads");
+ 
+                    if (!Directory.Exists(uploadsFolder))
+                    {
+                        Directory.CreateDirectory(uploadsFolder);
+                    }
+ 
+                    var fileName = Path.GetFileNameWithoutExtension(photo.FileName);
+                    var extension = Path.GetExtension(photo.FileName);
+                    var uniqueFileName = $"{fileName}_{DateTime.Now.Ticks.ToString()}{extension}";
+                    var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+ 
+                    using var stream = new FileStream(filePath, FileMode.Create);
+                    await photo.CopyToAsync(stream);
+ 
+                    customer.Photo = uniqueFileName;
+                }
+ 
+                if (customer.CustomerId > 0)
+                {
+                    //for edit
+                    var existingCustomer = await _context.Customers
+                                   .Include(c => c.DeliveryAddresses)
+                                   .FirstOrDefaultAsync(c => c.CustomerId == customer.CustomerId);
+ 
+                    if (existingCustomer != null)
+                    {
+                        existingCustomer.Name = customer.Name;
+                        existingCustomer.Email = customer.Email;
+                        existingCustomer.Phone = customer.Phone;
+                        existingCustomer.Address = customer.Address;
+                        existingCustomer.CustomerType = customer.CustomerType;
+                        existingCustomer.CreditDetails = customer.CreditDetails;
+                        existingCustomer.BusinessStart = customer.BusinessStart;
+                        existingCustomer.Photo = customer.Photo ?? existingCustomer.Photo;
+ 
+                        _context.DeliveryAddresses.RemoveRange(existingCustomer.DeliveryAddresses);
+                        foreach (var address in customer.DeliveryAddresses)
+                        {
+                            existingCustomer.DeliveryAddresses.Add(new DeliveryAddress
+                            {
+                                Address = address.Address,
+                                ContactPerson = address.ContactPerson,
+                                Phone = address.Phone
+                            });
+                        }
+                        _context.Customers.Update(existingCustomer);
+                    }
+                }
+                else
+                {
+                    //for insert
+ 
+                    _context.Customers.Add(customer);
+                }
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return RedirectToAction("Index");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Console.WriteLine($"Error: {ex.Message}");
+                return BadRequest("An error occured while saving data!!");
+            }
+        }
+ 
+        [HttpPost]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var customer = await _context.Customers.FindAsync(id);
+            if (customer == null)
+            {
+                return NotFound();
+            }
+            _context.Customers.Remove(customer);
+            await _context.SaveChangesAsync();
+ 
+            return Json(new
+            {
+                redirectTo = Url.Action("Index", "Customers")
+            });
+        }
+    }
+}
+ 
+ 
+Index.cshtml
+ 
+@model IEnumerable<NkB1285413.Models.Customer>
+@{
+    ViewData["Title"] = "Index";
+}
+ 
+<h1 class="display-5 text-center text-primary">Customer Details</h1>
+<hr />
+<form id="customerForm" method="post" asp-action="Save" enctype="multipart/form-data">
+    <div class="d-flex justify-content-center mb-2">
+        <button type="submit" id="btnSave" class="btn btn-primary">Save</button>&nbsp;
+        <button type="submit" id="btnEdit" class="btn btn-success" style="display:none">Update</button>&nbsp;
+        <button type="button" id="btnDelete" class="btn btn-danger">Delete</button>&nbsp;
+        <button type="reset" class="btn btn-warning">Clear</button>
+    </div>
+    <div class="container-fluid">
+        <div class="row">
+            <input type="hidden" id="customerId" name="customerId" />
+            <div class="row mb-2">
+                <label class="col-form-label col-2">Customer Id</label>
+                <div class="col-4">
+                    <input type="text" id="customerCode" class="form-control form-control-sm" value="@ViewBag.id" />
+                </div>
+            </div>
+            <div class="row mb-2">
+                <label class="col-form-label col-2">Customer Name</label>
+                <div class="col-4">
+                    <input type="text" id="name" name="name" class="form-control form-control-sm" />
+                </div>
+            </div>
+            <div class="row mb-2">
+                <label class="col-form-label col-2">Business Start</label>
+                <div class="col-4">
+                    <input type="date" id="businessStart" name="businessStart" class="form-control form-control-sm" />
+                </div>
+            </div>
+            <div class="row mb-2">
+                <label class="col-form-label col-2">Phone</label>
+                <div class="col-4">
+                    <input type="text" id="phone" name="phone" class="form-control form-control-sm" />
+                </div>
+            </div>
+            <div class="row mb-2">
+                <label class="col-form-label col-2">Email</label>
+                <div class="col-4">
+                    <input type="text" id="email" name="email" class="form-control form-control-sm" />
+                </div>
+            </div>
+            <div class="row mb-2">
+                <label class="col-form-label col-2">Credit Limit</label>
+                <div class="col-4">
+                    <input type="text" id="creditDetails" name="creditDetails" class="form-control form-control-sm" />
+                </div>
+            </div>
+            <div class="row mb-2">
+                <label class="col-form-label col-2">Address</label>
+                <div class="col-4">
+                    <input type="text" id="address" name="address" class="form-control form-control-sm" />
+                </div>
+            </div>
+            <div class="row mb-2">
+                <label class="col-form-label col-2">Customer Type</label>
+                <div class="col-4">
+                    <select id="customerType" name="customerType" class="form-select form-select-sm">
+                        <option value="Dealer">Dealer</option>
+                        <option value="Retailer">Retailer</option>
+                        <option value="Corporate">Corporate</option>
+                        <option value="Export">Export</option>
+                        <option value="Online">Online</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row mb-2">
+                <label class="col-form-label col-2">Photo</label>
+                <div class="col-4">
+                    <input type="file" id="photoInput" name="photo" class="form-control form-control-sm" onchange="previewImage(event)" accept="image/*" />
+                </div>
+                <div class="col-6">
+                    <img id="photoPreview" class="img-thumbnail d-none" style="width:40px;height:38px;object-fit:cover;" />
+                </div>
+            </div>
+        </div>
+ 
+        @*Delivery Address Table Section*@
+ 
+        <h3 class="display-6  text-center mt-5">Customer Address</h3>
+        <div class="d-flex justify-content-center">
+            <div class="col-10">
+                <table class="table table-bordered table-sm text-center">
+                    <thead>
+                        <tr>
+                            <th>Delivery Address</th>
+                            <th>Contact Person</th>
+                            <th>Phone</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deliveryAddressContainer">
+                        <tr class="deliveryAddressRow" id="deliveryAddressRow_0">
+                            <td>
+                                <input type="text" name="DeliveryAddresses[0].Address" class="form-control form-control-sm" required />
+                            </td>
+                            <td>
+                                <input type="text" name="DeliveryAddresses[0].ContactPerson" class="form-control form-control-sm" required />
+                            </td>
+                            <td>
+                                <input type="text" name="DeliveryAddresses[0].Phone" class="form-control form-control-sm" required />
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-danger btn-sm" id="btnRemoveDeliveryAddress">Delete</button>
+                                <button type="button" class="btn btn-success btn-sm" id="btnAddDeliveryAddress">Add</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</form>
+ 
+ 
+<h3 class="display-6  text-center  mt-5">Customer List</h3>
+<div class="d-flex justify-content-center">
+    <table class="table table-bordered table-striped table-sm">
+        <thead>
+            <tr>
+                <th>Customer Id</th>
+                <th>Name</th>
+                <th>Address</th>
+                <th>Customer Type</th>
+                <th>Bus. Start</th>
+                <th>Credit Limit</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var customer in Model)
+            {
+                <tr onclick="editCustomer(@customer.CustomerId)">
+                    <td>@customer.CustomerId</td>
+                    <td>@customer.Name</td>
+                    <td>@customer.Address</td>
+                    <td>@customer.CustomerType</td>
+                    <td>@customer.BusinessStart</td>
+                    <td>@customer.CreditDetails</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+ 
+@section Scripts {
+    <script>
+        function previewImage(event) {
+            const input = event.target;
+            const preview = document.getElementById('photoPreview');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    preview.src = e.target.result;
+                    preview.classList.remove('d-none');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+ 
+        let addressCount = 1;
+        document.getElementById('btnAddDeliveryAddress').addEventListener('click', function () {
+            const newRow = document.createElement('tr');
+            newRow.classList.add('deliveryAddressRow');
+            newRow.id = `deliveryAddressRow_${addressCount}`;
+            newRow.innerHTML = `
+                            <td><input type="text" name="DeliveryAddresses[${addressCount}].Address" class="form-control" required /></td>
+                            <td><input type="text" name="DeliveryAddresses[${addressCount}].ContactPerson" class="form-control" required /></td>
+                            <td><input type="text" name="DeliveryAddresses[${addressCount}].Phone" class="form-control" required /></td>
+                             <td>
+                                <button type="button" class="btn btn-danger btn-sm btnRemoveDeliveryAddress" >Delete</button>
+                             </td>
+                        `;
+            document.getElementById('deliveryAddressContainer').appendChild(newRow);
+            addressCount++;
+        });
+ 
+ 
+ 
+        document.getElementById('deliveryAddressContainer').addEventListener('click', function (e) {
+            if (e.target.classList.contains('btnRemoveDeliveryAddress')) {
+                e.target.closest('tr').remove();
+            }
+        })
+ 
+ 
+ 
+        //edit customer
+ 
+        function editCustomer(customerId) {
+            $.ajax({
+                url: '/Customers/GetCustomer',
+                type: 'GET',
+                data: { id: customerId },
+                success: function (response) {
+                    if (response) {
+                        //console.log(response);
+                        $("#customerId").val(response.customerId);
+                        $("#name").val(response.name);
+                        $("#businessStart").val(response.businessStart.split('T')[0]);
+                        $("#creditDetails").val(response.creditDetails);
+                        $("#phone").val(response.phone);
+                        $("#email").val(response.email);
+                        $("#customerType").val(response.customerType);
+                        $("#address").val(response.address);
+ 
+                        //Handle Photo
+ 
+                        if (response.photo) {
+                            $("#photoPreview").attr("src", "/Uploads/" + response.photo).removeClass("d-none");
+                        } else {
+                            $("#photoPreview").addClass("d-none");
+                        }
+ 
+                        //Handle Delivery Address
+ 
+                        $("#deliveryAddressContainer").empty();
+                        response.deliveryAddresses.forEach((address, index) => {
+                            var row = ` <tr class="deliveryAddressRow">
+                                              <td><input type="text" name="DeliveryAddresses[${index}].Address" class="form-control" value="${address.address}" required /></td>
+                                              <td><input type="text" name="DeliveryAddresses[${index}].ContactPerson" class="form-control" value="${address.contactPerson}" required /></td>
+                                              <td><input type="text" name="DeliveryAddresses[${index}].Phone" class="form-control" value="${address.phone}" required /></td>
+                                              <td>
+                                                 <button type="button" class="btn btn-danger btn-sm btnRemoveDeliveryAddress" >Delete</button>
+                                              </td>
+                                         </tr>
+                                `;
+                            $("#deliveryAddressContainer").append(row);
+                        });
+ 
+                        $("#btnSave").hide();
+                        $("#btnEdit").show();
+                    }
+                }
+            })
+        }
+ 
+        $(document).on("click", ".btnRemoveDeliveryAddress", function () {
+            $(this).closest('tr').remove();
+        })
+ 
+        document.getElementById("btnDelete").addEventListener("click", async () => {
+            const customerId = document.getElementById("customerId").value;
+            if (!customerId || customerId == 0) return alert("Please select a valid customer to delete!!");
+ 
+            if (confirm("Are you sure to delete this customer?")) {
+                try {
+                    const response = await fetch(`/Customers/Delete/${customerId}`, { method: "POST" });
+                    if (!response.ok) throw new Error("Failed to delete customer!!");
+ 
+                    alert("Customer deleted!!!");
+                    window.location.href = "/Customers/Index";
+                } catch (err) {
+                    alert(err.message);
+                }
+            }
+        })
+ 
+    </script>
+}
+ 
+Shared
+_Layout.cshtml
+ 
+ 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    @* <title>@ViewData["Title"] - NkB</title> *@
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/N1285413.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container-fluid">
+                @* <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">NkB</a> *@
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Customers" asp-action="Index">Customers</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container-fluid">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+ 
+    <footer class="border-top footer text-muted">
+        <div class="container-fluid text-center">
+            &copy; 2025 - NkB
+        </div>
+    </footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
+
+      //Clear all data
+            document.querySelector('button[type="reset"]').addEventListener("click", function () {
+      // Reset hidden field
+      document.getElementById("customerId").value = "";
+ 
+      // Reset photo preview
+      const photoPreview = document.getElementById("photoPreview");
+      photoPreview.src = "";
+      photoPreview.classList.add("d-none");
+ 
+      // Reset dropdown
+      document.getElementById("customerType").selectedIndex = 0;
+ 
+      // Clear delivery address rows except the first one
+      const deliveryAddressContainer = document.getElementById("deliveryAddressContainer");
+      deliveryAddressContainer.innerHTML = `
+            <tr class="deliveryAddressRow" id="deliveryAddressRow_0">
+                  <td><input type="text" name="DeliveryAddresses[0].Address" class="form-control form-control-sm" required /></td>
+                  <td><input type="text" name="DeliveryAddresses[0].ContactPerson" class="form-control form-control-sm" required /></td>
+                  <td><input type="text" name="DeliveryAddresses[0].Phone" class="form-control form-control-sm" required /></td>
+                  <td>
+                        <button type="button" class="btn btn-danger btn-sm" id="btnRemoveDeliveryAddress">Delete</button>
+                        <button type="button" class="btn btn-success btn-sm" id="btnAddDeliveryAddress">Add</button>
+                  </td>
+            </tr>
+      `;
+ 
+      // Reset button visibility
+      document.getElementById("btnSave").style.display = "inline-block";
+      document.getElementById("btnEdit").style.display = "none";
+ 
+      // Reset address count
+      addressCount = 1;
+});
+
